@@ -8,7 +8,10 @@
 
 using IDragnev::Threads::SmartThread;
 
-class Entry { };
+struct Entry 
+{
+	std::string value = "null";
+};
 
 class Cache
 {
@@ -40,7 +43,6 @@ public:
 			lock(std::move(lock)), 
 			range(std::move(range))
 		{
-			std::cout << std::this_thread::get_id() << " getting a range!\n";
 		}
 
 	private:
@@ -53,43 +55,31 @@ public:
 	
 	void updateEntry(const Key& key, const Entry& entry)
 	{
-		std::cout << std::this_thread::get_id() << " trying to write..\n";
 		auto lock = WriterLock(mutex);
-
-		std::cout << std::this_thread::get_id() << " writing!\n";
 		map[key] = entry;
-
-		std::cout << std::this_thread::get_id() << " is done writing..\n";
 	}
 
 	auto findEntry(const Key& key) const 
 	{
-		std::cout << std::this_thread::get_id() << " trying to read..\n";
 		auto lock = ReaderLock(mutex);
-
-		std::cout << std::this_thread::get_id() << " reading!\n";
 		auto iterator = map.find(key);
-
-		std::cout << std::this_thread::get_id() << " is done reading..\n";
 		return (iterator != map.cend()) ? iterator->second : Entry{};
 	}
 
 	auto viewAll(Predicate p) const
 	{
-		std::cout << std::this_thread::get_id() << " trying to read a range..\n";
 		auto lock = ReaderLock(mutex);
+		auto range = RangeView::Range{};
 
-		std::cout << std::this_thread::get_id() << " preparing a range..\n";
-		RangeView::Range result;
 		for (const auto& [key, entry] : map)
 		{
 			if (p(key))
 			{ 
-				result.emplace_back(entry);
+				range.emplace_back(entry);
 			}
 		}
 
-		return RangeView(std::move(lock), std::move(result));
+		return RangeView(std::move(lock), std::move(range));
 	}
 
 private:
@@ -117,17 +107,17 @@ auto joinAll = [](auto& threads)
 
 int main()
 {
-	Cache cache{ { 1, {} }, { 2, {} }, { 3, {} } };
-	auto threads = launchReaders(cache, { 1,2,3,4,5,6 });
+	Cache cache{ { 1, {"e1"} }, { 2, {"e2"} }, { 3, {"e3"} } };
+	auto threads = launchReaders(cache, { 1, 2, 3, 4, 5, 6 });
 
-	cache.updateEntry(111, {});
+	cache.updateEntry(111, { "e4" });
 	auto range = cache.viewAll([](int key) { return key % 2 == 0; });
 	
 	joinAll(threads);
 
 	for (const Entry& entry : range)
 	{
-		//..
+		std::cout << entry.value.c_str() << "\n";
 	}
 
 	return 0;
