@@ -1,6 +1,5 @@
 #include <iostream>
 #include <unordered_map>
-#include <string>
 #include <thread>
 #include <shared_mutex>
 #include <vector>
@@ -17,26 +16,27 @@ private:
 	using Key = int;
 	using Map = std::unordered_map<Key, Entry>;
 	using Pair = Map::value_type;
-	using Predicate = std::function<bool(int)>;
-	using ConstPairRef = std::reference_wrapper<const Pair>;
-	using Range = std::vector<ConstPairRef>;
 
-	using WriterGuard = std::lock_guard<std::shared_mutex>;
-	using ReaderGuard = std::shared_lock<std::shared_mutex>;
+	using Predicate = std::function<bool(int)>;
+
+	using WriterLock = std::lock_guard<std::shared_mutex>;
+	using ReaderLock = std::shared_lock<std::shared_mutex>;
 
 public:
-	class RangeProtector
+	class RangeView
 	{
 	private:
 		friend class Cache;
-		using ConstIterator = Range::const_iterator;
+
+		using ConstEntryRef = std::reference_wrapper<const Entry>;
+		using Range = std::vector<ConstEntryRef>;
 
 	public:
 		auto begin() const { return range.begin(); }
 		auto end() const { return range.end(); }
 
 	private:
-		RangeProtector(ReaderGuard&& lock, Range&& range) :
+		RangeView(ReaderLock&& lock, Range&& range) :
 			lock(std::move(lock)), 
 			range(std::move(range))
 		{
@@ -44,16 +44,17 @@ public:
 		}
 
 	private:
-		ReaderGuard lock;
+		ReaderLock lock;
 		Range range;
 	};
 
+public:
 	Cache(std::initializer_list<Pair> pairs) : map(pairs) { }
 	
 	void updateEntry(const Key& key, const Entry& entry)
 	{
 		std::cout << std::this_thread::get_id() << " trying to write..\n";
-		auto g = WriterGuard(mutex);
+		auto lock = WriterLock(mutex);
 
 		std::cout << std::this_thread::get_id() << " writing!\n";
 		map[key] = entry;
@@ -64,7 +65,7 @@ public:
 	auto findEntry(const Key& key) const 
 	{
 		std::cout << std::this_thread::get_id() << " trying to read..\n";
-		auto g = ReaderGuard(mutex);
+		auto lock = ReaderLock(mutex);
 
 		std::cout << std::this_thread::get_id() << " reading!\n";
 		auto iterator = map.find(key);
@@ -73,22 +74,22 @@ public:
 		return (iterator != map.cend()) ? iterator->second : Entry{};
 	}
 
-	auto findAll(Predicate p) const
+	auto viewAll(Predicate p) const
 	{
 		std::cout << std::this_thread::get_id() << " trying to read a range..\n";
-		auto lock = ReaderGuard(mutex);
+		auto lock = ReaderLock(mutex);
 
 		std::cout << std::this_thread::get_id() << " preparing a range..\n";
-		Range result;	
-		for (const auto& pair : map)
+		RangeView::Range result;
+		for (const auto& [key, entry] : map)
 		{
-			if (p(pair.first))
+			if (p(key))
 			{ 
-				result.emplace_back(pair);
+				result.emplace_back(entry);
 			}
 		}
 
-		return RangeProtector(std::move(lock), std::move(result));
+		return RangeView(std::move(lock), std::move(result));
 	}
 
 private:
@@ -120,9 +121,14 @@ int main()
 	auto threads = launchReaders(cache, { 1,2,3,4,5,6 });
 
 	cache.updateEntry(111, {});
-	auto pairRange = cache.findAll([](int key) { return key % 2 == 0; });
+	auto range = cache.viewAll([](int key) { return key % 2 == 0; });
 	
 	joinAll(threads);
+
+	for (const Entry& entry : range)
+	{
+		//..
+	}
 
 	return 0;
 }
