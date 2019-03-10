@@ -17,12 +17,14 @@ unsigned long pow(unsigned x, unsigned y)
 	return std::pow(x, y);
 }
 
-void perform(Tasks& tasks)
+void perform(Task& t)
 {
-	for (auto& t : tasks)
-	{
-		t();
-	}
+	t();
+}
+
+void performAll(Tasks& tasks)
+{
+	std::for_each(tasks.begin(), tasks.end(), perform);
 }
 
 auto makeTasks()
@@ -40,13 +42,12 @@ auto makeTasks()
 auto futuresOf(Tasks& tasks)
 {
 	Results results;
-	results.reserve(tasks.size());
-
-	for (auto& task : tasks)
-	{
-		results.push_back(task.get_future());
-	}
-
+	
+	std::transform(tasks.begin(), 
+		           tasks.end(),
+		           std::back_inserter<Results>(results),
+		           [](Task& t) { return t.get_future(); });
+	
 	return results;
 }
 
@@ -58,9 +59,9 @@ void doSomeImportantWork()
 
 void process(Results& results)
 {
-	for (auto& result : results)
+	for (auto& r : results)
 	{
-		print(result.get(), "\n");
+		print(r.get(), "\n");
 	}
 }
 
@@ -68,7 +69,7 @@ int main()
 {
 	auto tasks = makeTasks();
 	auto results = futuresOf(tasks);
-	std::thread worker([&tasks] { perform(tasks); });
+	std::thread worker([&tasks] { performAll(tasks); });
 	doSomeImportantWork();
 	worker.join();
 	process(results);
