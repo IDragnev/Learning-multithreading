@@ -24,7 +24,7 @@ void prepare()
 
 auto makeTask(TimePoint start, SharedBarrier canStart, Promise ready)
 {
-	return [start, canStart, ready = std::move(ready)]() mutable
+	return [start, canStart, ready = std::move(ready)]() mutable 
 	{ 
 		prepare();
 		ready.set_value();
@@ -42,7 +42,7 @@ auto futuresOf(Promises&... promises)
 template <typename... Promises>
 auto launchAsync(SharedBarrier canStart, Promises&&... promises)
 {
-	return std::make_tuple(std::async(makeTask(timeNow(), canStart, std::move(promises)))...);
+	return std::make_tuple(std::async(std::launch::async, makeTask(timeNow(), canStart, std::move(promises)))...);
 }
 
 int main()
