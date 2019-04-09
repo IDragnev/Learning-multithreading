@@ -26,122 +26,102 @@ namespace IDragnev::Multithreading
 	{
 	private:
 		static_assert(isSafelyReturnable<T>);
+		
+		using CounterType = std::uint32_t;
+
+		struct Node;
+
+		struct RefCountedNodePtr
+		{
+			Node* node = nullptr;
+			CounterType externalCount = 1;
+		};
 
 		struct Node
 		{
 			template <typename... Args>
 			Node(Args&&... args) :
-				data(std::forward<Args>(args)...)
+				data(std::forward<Args>(args)...),
+				internalCount(0),
+				next(nullptr)
 			{
 			}
 
 			T data;
-			Node* next = nullptr;
+			std::atomic<CounterType> internalCount;
+			RefCountedNodePtr next;
 		};
 
 	public:
+		~LockFreeStack()
+		{
+			auto extracted = std::nullopt;
+			do
+			{
+				extracted = pop();
+			} while (extracted != std::nullopt);
+		}
+
 		void push(const T& item)
 		{
-			auto node = new Node(item);
-
-			node->next = head.load();
-			while (!head.compare_exchange_weak(node->next, node)) 
+			auto ptr = RefCountedNodePtr{ new Node(item) };
+			ptr.node->next = head.load();
+			while(!head.compare_exchange_weak(ptr.node->next, ptr))
 			{ }
 		}
 
 		std::optional<T> pop()
 		{
-			++threadsCurrentlyPopping;
+			auto result = std::nullopt;
+			auto oldHead = head.load();
 
-			auto oldHead = head.load();                                   // extract a function: 
-			while (oldHead &&                                             // Node* extractHead();
-				   !head.compare_exchange_weak(oldHead, oldHead->next))   //
-			{ }                                                           //
+			for (;;)
+			{
+				increaseHeadCount(oldHead);
 
-			auto result = oldHead ? std::move(oldHead->data) : std::nullopt; 
-			tryToReclaim(oldHead);
+				auto node = oldHead.node;
 
-			return result;
+				if (!node)
+				{
+					return result;
+				}
+				if (head.compare_exchange_strong(oldHead, node->next))
+				{
+					result = std::move(node->data);
+					auto countIncrease = oldHead.externalCount - 2;
+
+					if (auto oldCount = node->internalCount.fetch_add(countIncrease);
+						oldCount == -countIncrease)
+					{
+						delete node;
+					}
+
+					return result;
+				}
+				else if (auto oldCount = node->internalCount.fetch_sub(1);
+					     oldCount == 1)
+				{
+					delete node;
+				}
+			}
 		}
 
 	private:
-		void tryToReclaim(Node* node)
+		void increaseHeadCount(RefCountedNodePtr& oldHead)
 		{
-			if (threadsCurrentlyPopping == 1)
+			auto temp = RefCountedNodePtr{};
+
+			do
 			{
-				auto chain = claimChainToDelete();
+				temp = oldHead;
+				++temp.externalCount;
+			} while (!head.compare_exchange_strong(oldHead, temp);
 
-				if (auto remaining = --threadsCurrentlyPopping;
-					remaining == 0)
-				{
-					clear(chain);
-				}
-				else if (chain)
-				{
-					chainPendingNodes(chain);
-				}
-				
-				delete node;
-			}
-			else
-			{
-				chainSinglePendingNode(node);
-				--threadsCurrentlyPopping;
-			}
-		}
-		
-		inline Node* claimChainToDelete()
-		{
-			return chainToDelete.exchange(nullptr);
-		}
-
-		static void clear(Node* chain)
-		{
-			auto current = chain;
-
-			while (current)
-			{
-				auto next = current->next;
-				delete current;
-				current = next;
-			}
-		}
-
-		inline void chainPendingNodes(Node* start)
-		{
-			chainPendingNodes(start, endOfChain(start));
-		}
-
-		void endOfChain(Node* start)
-		{
-			assert(start);
-			
-			auto current = start;
-			
-			while (current->next)
-			{
-				current = current->next;
-			}
-
-			return current;
-		}
-
-		void chainPendingNodes(Node* first, Node* last)
-		{
-			last->next = chainToDelete;
-			while (!chainToDelete.compare_exchange_weak(last->next, first))
-			{ }
-		}
-
-		void chainSinglePendingNode(Node* n) 
-		{
-			chainPendingNodes(n, n);
+			oldHead.externalCount = temp.externalCount;
 		}
 
 	private:
-		std::atomic<Node*> head = nullptr;
-		std::atomic<Node*> chainToDelete = nullptr;
-		std::atomic<std::uint32_t> threadsCurrentlyPopping = 0;
+		std::atomic<RefCountedNodePtr> head = nullptr;
 	};
 }
 
