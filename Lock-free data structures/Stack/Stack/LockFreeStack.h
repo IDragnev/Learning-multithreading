@@ -25,7 +25,7 @@ namespace IDragnev::Multithreading
 	class LockFreeStack
 	{
 	private:
-		static_assert(isSafelyReturnable<T>);
+		static_assert(isSafelyReturnable<T>, "LockFreeStack cannot guarantee exception safety for T");
 		
 		using CounterType = std::uint32_t;
 
@@ -33,7 +33,7 @@ namespace IDragnev::Multithreading
 
 		struct RefCountedNodePtr
 		{
-			Node* node = nullptr;
+			Node* node;
 			CounterType externalCount = 1;
 		};
 
@@ -53,75 +53,24 @@ namespace IDragnev::Multithreading
 		};
 
 	public:
-		~LockFreeStack()
-		{
-			auto extracted = std::nullopt;
-			do
-			{
-				extracted = pop();
-			} while (extracted != std::nullopt);
-		}
+		LockFreeStack();
+		LockFreeStack(const LockFreeStack&) = delete;
+		~LockFreeStack();
+		
+		LockFreeStack& operator=(const LockFreeStack&) = delete;
 
-		void push(const T& item)
-		{
-			auto ptr = RefCountedNodePtr{ new Node(item) };
-			ptr.node->next = head.load();
-			while(!head.compare_exchange_weak(ptr.node->next, ptr))
-			{ }
-		}
-
-		std::optional<T> pop()
-		{
-			auto result = std::nullopt;
-			auto oldHead = head.load();
-
-			for (;;)
-			{
-				increaseHeadCount(oldHead);
-
-				auto node = oldHead.node;
-
-				if (!node)
-				{
-					return result;
-				}
-				if (head.compare_exchange_strong(oldHead, node->next))
-				{
-					result = std::move(node->data);
-					auto countIncrease = oldHead.externalCount - 2;
-
-					if (auto oldCount = node->internalCount.fetch_add(countIncrease);
-						oldCount == -countIncrease)
-					{
-						delete node;
-					}
-
-					return result;
-				}
-				else if (auto oldCount = node->internalCount.fetch_sub(1);
-					     oldCount == 1)
-				{
-					delete node;
-				}
-			}
-		}
+		void push(T&& item);
+		void push(const T& item);
+		std::optional<T> pop();
 
 	private:
-		void increaseHeadCount(RefCountedNodePtr& oldHead)
-		{
-			auto temp = RefCountedNodePtr{};
+		template <typename Item>
+		void doPush(Item&& item);
 
-			do
-			{
-				temp = oldHead;
-				++temp.externalCount;
-			} while (!head.compare_exchange_strong(oldHead, temp);
-
-			oldHead.externalCount = temp.externalCount;
-		}
+		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead);
 
 	private:
-		std::atomic<RefCountedNodePtr> head = nullptr;
+		std::atomic<RefCountedNodePtr> head;
 	};
 }
 
