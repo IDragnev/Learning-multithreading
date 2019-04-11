@@ -52,7 +52,6 @@ namespace IDragnev::Multithreading
 	template <typename T>
 	std::optional<T> LockFreeStack<T>::pop()
 	{
-		auto result = std::nullopt;
 		auto oldHead = head.load(std::memory_order_relaxed);
 
 		for (;;)
@@ -62,12 +61,12 @@ namespace IDragnev::Multithreading
 
 			if (!node)
 			{
-				return result;
+				return std::nullopt;
 			}
 			if (head.compare_exchange_strong(oldHead, node->next, 
 				                             std::memory_order_relaxed))
 			{
-				result = std::move(node->data);
+				auto result = std::optional<T>{ std::move(node->data) };
 				auto increase = oldHead.externalCount - 2;
 
 				if (auto oldCount = node->internalCount.fetch_add(increase, std::memory_order_release);
