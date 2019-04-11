@@ -98,7 +98,7 @@ namespace IDragnev::Multithreading
 			++result.externalCount;
 		} while (!head.compare_exchange_strong(oldHead, result,
 											   std::memory_order_aqcuire,
-											   std::memory_order_relaxed);
+											   std::memory_order_relaxed));
 
 		return result;
 	}
