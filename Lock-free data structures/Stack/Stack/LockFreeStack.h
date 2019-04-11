@@ -45,7 +45,7 @@ namespace IDragnev::Multithreading
 			Node(Args&&... args) :
 				data(std::forward<Args>(args)...),
 				internalCount(0),
-				next(nullptr)
+				next({ nullptr, 0 })
 			{
 			}
 
@@ -61,13 +61,15 @@ namespace IDragnev::Multithreading
 		
 		LockFreeStack& operator=(const LockFreeStack&) = delete;
 
+		template <typename... Args>
+		void emplace(Args&&... args);
 		void push(T&& item);
 		void push(const T& item);
 		std::optional<T> pop();
 
 	private:
-		template <typename Item>
-		void doPush(Item&& item);
+		template <typename... Args>
+		void doPush(Args&&... args);
 		void insertAsHead(RefCountedNodePtr ptr);
 
 		static std::optional<T> extractDataOf(Node* node);

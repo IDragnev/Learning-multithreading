@@ -16,6 +16,13 @@ namespace IDragnev::Multithreading
 			extracted = pop();
 		} while (extracted != std::nullopt);
 	}
+
+	template <typename T>
+	template <typename... Args>
+	inline void LockFreeStack<T>::emplace(Args&&... args)
+	{
+		doPush(std::forward<Args>(args)...);
+	}
 	
 	template <typename T>
 	inline void LockFreeStack<T>::push(const T& item)
@@ -30,10 +37,10 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	template <typename Item>
-	void LockFreeStack<T>::doPush(Item&& item)
+	template <typename... Args>
+	void LockFreeStack<T>::doPush(Args&&... args)
 	{
-		auto ptr = makeRefCountedNodePtr(std::forward<Item>(item));
+		auto ptr = makeRefCountedNodePtr(std::forward<Args>(args)...);
 		insertAsHead(ptr);
 	}
 
