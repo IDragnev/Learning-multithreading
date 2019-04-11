@@ -66,6 +66,9 @@ namespace IDragnev::Multithreading
 	private:
 		template <typename Item>
 		void doPush(Item&& item);
+		
+		template <typename... Args>
+		static RefCountedNodePtr makeRefCountedNodePtr(Args&&... args);
 
 		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead);
 
