@@ -1,6 +1,8 @@
 #ifndef __LOCK_FREE_STACK
 #define __LOCK_FREE_STACK
 
+#define _ENABLE_ATOMIC_ALIGNMENT_FIX
+
 #include <atomic>
 #include <optional>
 #include <assert.h>
@@ -27,7 +29,7 @@ namespace IDragnev::Multithreading
 	private:
 		static_assert(isSafelyReturnable<T>, "LockFreeStack cannot guarantee exception safety for T");
 		
-		using CounterType = std::uint32_t;
+		using CounterType = std::int32_t;
 
 		struct Node;
 
@@ -66,6 +68,11 @@ namespace IDragnev::Multithreading
 	private:
 		template <typename Item>
 		void doPush(Item&& item);
+		void insertAsHead(RefCountedNodePtr ptr);
+
+		static std::optional<T> extractDataOf(Node* node);
+		static void updateRefCountAndFreeNodeIfNotReferenced(RefCountedNodePtr ptr);
+		static void synchronizeWithRefCountUpdateAndFree(Node* node);
 
 		template <typename... Args>
 		static RefCountedNodePtr makeRefCountedNodePtr(Args&&... args);
