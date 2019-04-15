@@ -45,7 +45,7 @@ namespace IDragnev::Multithreading
 			Node(Args&&... args) :
 				data(std::forward<Args>(args)...),
 				internalCount(0),
-				next({ nullptr, 0 })
+				next{ nullptr, 0 }
 			{
 			}
 
