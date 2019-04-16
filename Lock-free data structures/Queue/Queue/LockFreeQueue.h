@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 
 namespace IDragnev::Multithreading
 {
@@ -40,16 +41,25 @@ namespace IDragnev::Multithreading
 			AtomicRefCountedNodePtr next;
 		};
 
+	public:
+		void push(T item);
+		std::unique_ptr<T> extractFront();
+
 	private:
 		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead);
 		RefCountedNodePtr getTailIncreasingItsRefCount(RefCountedNodePtr oldTail);
+		void setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail);
+		Node* getTailNode() noexcept;
 
 		template <typename Callable>
 		void updateRefCountOf(Node* node, Callable update);
 
+		static const RefCountedNodePtr emptyRefCountedNodePtr;
+
+		static T* extractDataOf(Node* node) noexcept;
 		static void releaseReferenceTo(Node* node);
 		static void releaseExternalCounter(RefCountedNodePtr& ptr);
-		static void deleteIfNotReferenced(Node* node, const RefCount& count);
+		static void deleteIfNotReferenced(Node* node, const RefCount& count) noexcept;
 		static RefCountedNodePtr increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue);
 
 	private:
