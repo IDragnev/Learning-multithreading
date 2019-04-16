@@ -2,10 +2,17 @@
 namespace IDragnev::Multithreading
 {
 	template <typename T>
-	const LockFreeQueue<T>::RefCountedNodePtr LockFreeQueue<T>::emptyRefCountedNodePtr = { nullptr, 0 };
+	typename const LockFreeQueue<T>::RefCountedNodePtr LockFreeQueue<T>::emptyRefCountedNodePtr = { nullptr, 0 };
 
 	template <typename T>
-	std::unique_ptr<T> LockFreeQueue<T>::extractFront()
+	LockFreeQueue<T>::LockFreeQueue() :
+		head{ { new Node } },
+		tail{ head.load() }
+	{
+	}
+
+	template <typename T>
+	std::unique_ptr<T> LockFreeQueue<T>::extractFront() noexcept
 	{
 		auto oldHead = head.load(std::memory_order_relaxed);
 		for (;;)
@@ -31,13 +38,13 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	inline auto LockFreeQueue<T>::getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead) -> RefCountedNodePtr
+	inline auto LockFreeQueue<T>::getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead) noexcept -> RefCountedNodePtr
 	{
 		return increaseExternalCount(head, oldHead);
 	}
 
 	template <typename T>
-	auto LockFreeQueue<T>::increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue) -> RefCountedNodePtr
+	auto LockFreeQueue<T>::increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue) noexcept -> RefCountedNodePtr
 	{
 		RefCountedNodePtr result;
 
@@ -65,7 +72,7 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	void LockFreeQueue<T>::releaseReferenceTo(Node* node)
+	void LockFreeQueue<T>::releaseReferenceTo(Node* node) noexcept
 	{
 		updateRefCountOf(node, [](auto oldCount)
 		{
@@ -76,7 +83,7 @@ namespace IDragnev::Multithreading
 
 	template <typename T>
 	template <typename Callable>
-	void LockFreeQueue<T>::updateRefCountOf(Node* node, Callable update)
+	void LockFreeQueue<T>::updateRefCountOf(Node* node, Callable update) noexcept
 	{
 		auto oldCount = node->count.load(std::memory_order_relaxed);
 		decltype(oldCount) newCount;
@@ -102,7 +109,7 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	void LockFreeQueue<T>::push(T item)
+	void LockFreeQueue<T>::enqueue(T item)
 	{
 		auto newData = std::make_unique(std::move(item));
 		auto newNext = RefCountedNodePtr{ new Node };
@@ -139,32 +146,32 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	inline auto LockFreeQueue<T>::getTailIncreasingItsRefCount(RefCountedNodePtr oldTail) -> RefCountedNodePtr
+	inline auto LockFreeQueue<T>::getTailIncreasingItsRefCount(RefCountedNodePtr oldTail) noexcept -> RefCountedNodePtr
 	{
 		return increaseExternalCount(tail, oldTail);
 	}
 
 	template <typename T>
-	void LockFreeQueue<T>::setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail)
+	void LockFreeQueue<T>::setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail) noexcept
 	{
-		auto currentTailNode = oldTail.node;
+		auto node = oldTail.node;
 
 		while (!tail.compare_exchange_weak(oldTail, newTail) &&
-			   oldTail.node == currentTailNode)
+			   oldTail.node == node)
 		{ }
 
-		if (oldTail.node == currentTailNode)
+		if (oldTail.node == node)
 		{
 			releaseExternalCounter(oldTail);
 		}
 		else
 		{
-			releaseReferenceTo(currentTailNode);
+			releaseReferenceTo(node);
 		}
 	}
 
 	template <typename T>
-	void LockFreeQueue<T>::releaseExternalCounter(RefCountedNodePtr& ptr)
+	void LockFreeQueue<T>::releaseExternalCounter(RefCountedNodePtr& ptr) noexcept
 	{
 		auto increase = ptr.externalCount - 2;
 

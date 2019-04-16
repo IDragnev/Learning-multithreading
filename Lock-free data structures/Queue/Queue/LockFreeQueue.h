@@ -31,7 +31,7 @@ namespace IDragnev::Multithreading
 		{
 			Node() :
 				data{ nullptr },
-				count{ 0, 2 },
+				count{ { 0, 2 } },
 				next{ { nullptr, 0 } }
 			{
 			}
@@ -42,25 +42,28 @@ namespace IDragnev::Multithreading
 		};
 
 	public:
-		void push(T item);
-		std::unique_ptr<T> extractFront();
+		LockFreeQueue();
+		~LockFreeQueue();
+
+		void enqueue(T item);
+		std::unique_ptr<T> extractFront() noexcept;
 
 	private:
-		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead);
-		RefCountedNodePtr getTailIncreasingItsRefCount(RefCountedNodePtr oldTail);
-		void setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail);
+		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead) noexcept;
+		RefCountedNodePtr getTailIncreasingItsRefCount(RefCountedNodePtr oldTail) noexcept;
+		void setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail) noexcept;
 		Node* getTailNode() noexcept;
 
 		template <typename Callable>
-		void updateRefCountOf(Node* node, Callable update);
+		void updateRefCountOf(Node* node, Callable update) noexcept;
 
 		static const RefCountedNodePtr emptyRefCountedNodePtr;
 
 		static T* extractDataOf(Node* node) noexcept;
-		static void releaseReferenceTo(Node* node);
-		static void releaseExternalCounter(RefCountedNodePtr& ptr);
+		static void releaseReferenceTo(Node* node) noexcept;
+		static void releaseExternalCounter(RefCountedNodePtr& ptr) noexcept;
 		static void deleteIfNotReferenced(Node* node, const RefCount& count) noexcept;
-		static RefCountedNodePtr increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue);
+		static RefCountedNodePtr increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue) noexcept;
 
 	private:
 		AtomicRefCountedNodePtr head;
