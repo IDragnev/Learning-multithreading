@@ -1,6 +1,8 @@
 #ifndef __LOCK_FREE_QUEUE_H_INCLUDED__
 #define __LOCK_FREE_QUEUE_H_INCLUDED__
 
+#define _ENABLE_ATOMIC_ALIGNMENT_FIX
+
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -43,25 +45,32 @@ namespace IDragnev::Multithreading
 
 	public:
 		LockFreeQueue();
+		LockFreeQueue(const LockFreeQueue&) = delete;
 		~LockFreeQueue();
 
-		void enqueue(T item);
+		LockFreeQueue& operator=(const LockFreeQueue&) = delete;
+
+		template <typename... Args>
+		void emplace(Args&&... args);
+		void enqueue(T&& item);
+		void enqueue(const T& item);
 		std::unique_ptr<T> extractFront() noexcept;
 
 	private:
+		void enqueue(std::unique_ptr<T> newData);
+
 		RefCountedNodePtr getHeadIncreasingItsRefCount(RefCountedNodePtr oldHead) noexcept;
 		RefCountedNodePtr getTailIncreasingItsRefCount(RefCountedNodePtr oldTail) noexcept;
 		void setTail(RefCountedNodePtr& oldTail, const RefCountedNodePtr& newTail) noexcept;
 		Node* getTailNode() noexcept;
 
-		template <typename Callable>
-		void updateRefCountOf(Node* node, Callable update) noexcept;
-
 		static const RefCountedNodePtr emptyRefCountedNodePtr;
-
-		static T* extractDataOf(Node* node) noexcept;
+		
+	   	static std::unique_ptr<T> extractDataOf(Node* node) noexcept;
 		static void releaseReferenceTo(Node* node) noexcept;
 		static void releaseExternalCounter(RefCountedNodePtr& ptr) noexcept;
+		template <typename Callable>
+		static void updateRefCountOf(Node* node, Callable update) noexcept;
 		static void deleteIfNotReferenced(Node* node, const RefCount& count) noexcept;
 		static RefCountedNodePtr increaseExternalCount(AtomicRefCountedNodePtr& source, RefCountedNodePtr oldValue) noexcept;
 

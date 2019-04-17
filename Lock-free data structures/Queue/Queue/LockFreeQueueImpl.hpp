@@ -12,6 +12,16 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
+	LockFreeQueue<T>::~LockFreeQueue()
+	{
+		decltype(extractFront()) extracted = nullptr;
+		do
+		{
+			extracted = extractFront();
+		} while (extracted != nullptr);
+	}
+
+	template <typename T>
 	std::unique_ptr<T> LockFreeQueue<T>::extractFront() noexcept
 	{
 		auto oldHead = head.load(std::memory_order_relaxed);
@@ -66,9 +76,10 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	inline T* LockFreeQueue<T>::extractDataOf(Node* node) noexcept
+	inline std::unique_ptr<T> LockFreeQueue<T>::extractDataOf(Node* node) noexcept
 	{
-		return node->data.exchange(nullptr);
+		auto data = node->data.exchange(nullptr);
+		return std::unique_ptr<T>{data};
 	}
 
 	template <typename T>
@@ -109,9 +120,27 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T>
-	void LockFreeQueue<T>::enqueue(T item)
+	template <typename... Args>
+	inline void LockFreeQueue<T>::emplace(Args&&... args)
 	{
-		auto newData = std::make_unique(std::move(item));
+		enqueue(std::make_unique<T>(std::forward<Args>(args)...));
+	}
+
+	template <typename T>
+	inline void LockFreeQueue<T>::enqueue(const T& item)
+	{
+		enqueue(std::make_unique<T>(item));
+	}
+
+	template <typename T>
+	inline void LockFreeQueue<T>::enqueue(T&& item)
+	{
+		enqueue(std::make_unique<T>(std::move(item)));
+	}
+
+	template <typename T>
+	void LockFreeQueue<T>::enqueue(std::unique_ptr<T> newData)
+	{
 		auto newNext = RefCountedNodePtr{ new Node };
 		auto oldTail = tail.load();
 
@@ -138,7 +167,7 @@ namespace IDragnev::Multithreading
 				if (oldTail.node->next.compare_exchange_strong(oldNext, newNext))
 				{
 					oldNext = newNext;
-					newNext.ptr = new Node;
+					newNext.node = new Node;
 				}
 				setTail(oldTail, oldNext);
 			}
