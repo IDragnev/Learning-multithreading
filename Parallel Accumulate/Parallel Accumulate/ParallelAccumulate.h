@@ -2,46 +2,52 @@
 
 #include "SmartThread.h"
 #include <vector>
+#include <future>
+#include <memory>
 
-namespace IDragnev
+namespace IDragnev::Multithreading
 {
-	namespace Threads
+	inline auto sum = [](auto x, auto y) noexcept { return x + y; };
+
+	template <typename T, typename Iterator, typename BinaryOp> 
+	class ParallelAccumulate
 	{
-		template <typename T, typename Iterator, typename BinaryOp>
-		class ParallelAccumulate
-		{
-		private:
-			using Results = std::vector<T>;
+	private:
+		using Threads = std::vector<SmartThread>;
+		using Futures = std::vector<std::future<T>>;
+		using Task = std::packaged_task<T()>;
 
-		public:
-			T operator()(Iterator first, Iterator last, BinaryOp op, T initial);
+	public:
+		T operator()(Iterator first, Iterator last, T nullValue, T initialValue, BinaryOp op);
 
-		private:
-			void setNumberOfThreadsAndBlockSize(std::size_t length);
-			void reserveMemory(T& initial);
-			void splitWorkToThreads(Iterator first, Iterator last, BinaryOp op);
-			void launchThread(Iterator first, Iterator last, BinaryOp op, T& result);
-			void accumulateBlock(Iterator first, Iterator last, BinaryOp op, T& result);
-			void joinAllThreads();
-			T accumulateResults(BinaryOp op, T initial);
-			void clear();
+	private:
+		void initializeState(std::size_t length);
+		void setNumberOfThreadsAndBlockSize(std::size_t length);
+		void reserveMemory();
+		Iterator splitWorkToThreads(Iterator first, Iterator last, T nullValue, BinaryOp op);
+		void launchThread(Iterator first, Iterator last, T nullValue, BinaryOp op);
+		T accumulateResults(T initialValue, T lastBlockResult, BinaryOp op);
+		auto makeScopedClear();
 
-		private:
-			static constexpr std::size_t MIN_ITEMS_PER_THREAD = 25;
+		static T accumulateBlock(Iterator first, Iterator last, T nullValue, BinaryOp op);
 
-		private:
-			Results results;
-			std::vector<SmartThread> threads;
-			std::size_t numberOfThreads = 0;
-			std::size_t blockSize = 0;
-		};
+	private:
+		static constexpr std::size_t MIN_ITEMS_PER_THREAD = 25;
 
-		template <typename Iterator, typename BinaryOp, typename T>
-		T accumulate(Iterator first, Iterator last, BinaryOp op, T init)
-		{
-			auto f = ParallelAccumulate<T, Iterator, BinaryOp>{};
-			return f(first, last, op, init);
-		}
+	private:
+		Futures futures;
+		Threads threads;
+		std::size_t numberOfThreads = 0;
+		std::size_t blockSize = 0;
+	};
+
+	template <typename Iterator,
+		      typename T = typename std::iterator_traits<Iterator>::value_type,
+		      typename BinaryOp = decltype(sum)
+	> inline T accumulate(Iterator first, Iterator last, T nullValue = {}, T initialValue = {}, BinaryOp op = sum)
+	{
+		using Accumulator = ParallelAccumulate<T, Iterator, BinaryOp>;
+		return Accumulator{}(first, last, nullValue, initialValue, op);
 	}
 }
 
