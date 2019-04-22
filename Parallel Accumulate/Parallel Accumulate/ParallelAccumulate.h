@@ -49,6 +49,12 @@ namespace IDragnev::Multithreading
 		using Accumulator = ParallelAccumulate<T, Iterator, BinaryOp>;
 		return Accumulator{}(first, last, nullValue, op);
 	}
+
+	template <typename Iterator,
+	 	      typename T = typename std::iterator_traits<Iterator>::value_type,
+		      typename BinaryOp = decltype(sum)
+	> T recursiveParallelAccumulate(Iterator first, Iterator last, T nullValue = {}, BinaryOp op = sum);
 }
 
 #include "ParralelAccumulateImpl.hpp"
+#include "RecursiveParallelAccumulate.h"
