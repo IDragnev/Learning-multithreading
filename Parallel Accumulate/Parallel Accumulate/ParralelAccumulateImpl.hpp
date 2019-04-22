@@ -4,10 +4,10 @@
 namespace IDragnev::Multithreading
 {
 	template <typename T, typename Iterator, typename BinaryOp>
-	T ParallelAccumulate<T, Iterator, BinaryOp>::operator()(Iterator first, Iterator last, T nullValue, T initialValue, BinaryOp op)
+	T ParallelAccumulate<T, Iterator, BinaryOp>::operator()(Iterator first, Iterator last, T nullValue, BinaryOp op)
 	{
 		if (auto length = std::distance(first, last);
-			length != 0)
+			length > 0)
 		{
 			auto clear = makeScopedClear();
 			initializeState(length);
@@ -15,11 +15,11 @@ namespace IDragnev::Multithreading
 			auto lastBlockStart = splitWorkToThreads(first, last, nullValue, op);
 			auto lastBlockResult = accumulateBlock(lastBlockStart, last, nullValue, op);
 			
-			return accumulateResults(initialValue, lastBlockResult, op);
+			return accumulateResults(nullValue, lastBlockResult, op);
 		}
 		else
 		{
-			return initialValue;
+			return nullValue;
 		}
 	}
 
@@ -96,9 +96,9 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename T, typename Iterator, typename BinaryOp>
-	T ParallelAccumulate<T, Iterator, BinaryOp>::accumulateResults(T initialValue, T lastBlockResult, BinaryOp op)
+	T ParallelAccumulate<T, Iterator, BinaryOp>::accumulateResults(T nullValue, T lastBlockResult, BinaryOp op)
 	{
-		auto init = op(initialValue, lastBlockResult);
+		auto init = op(nullValue, lastBlockResult);
 		auto operation = [op](auto&& result, auto& future) -> decltype(auto)
 		{ 
 			using T = decltype(result);

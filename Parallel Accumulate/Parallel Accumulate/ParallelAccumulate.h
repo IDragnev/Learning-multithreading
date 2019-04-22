@@ -18,7 +18,7 @@ namespace IDragnev::Multithreading
 		using Task = std::packaged_task<T()>;
 
 	public:
-		T operator()(Iterator first, Iterator last, T nullValue, T initialValue, BinaryOp op);
+		T operator()(Iterator first, Iterator last, T nullValue, BinaryOp op);
 
 	private:
 		void initializeState(std::size_t length);
@@ -26,7 +26,7 @@ namespace IDragnev::Multithreading
 		void reserveMemory();
 		Iterator splitWorkToThreads(Iterator first, Iterator last, T nullValue, BinaryOp op);
 		void launchThread(Iterator first, Iterator last, T nullValue, BinaryOp op);
-		T accumulateResults(T initialValue, T lastBlockResult, BinaryOp op);
+		T accumulateResults(T nullValue, T lastBlockResult, BinaryOp op);
 		auto makeScopedClear();
 
 		static T accumulateBlock(Iterator first, Iterator last, T nullValue, BinaryOp op);
@@ -44,10 +44,10 @@ namespace IDragnev::Multithreading
 	template <typename Iterator,
 		      typename T = typename std::iterator_traits<Iterator>::value_type,
 		      typename BinaryOp = decltype(sum)
-	> inline T accumulate(Iterator first, Iterator last, T nullValue = {}, T initialValue = {}, BinaryOp op = sum)
+	> inline T accumulate(Iterator first, Iterator last, T nullValue = {}, BinaryOp op = sum)
 	{
 		using Accumulator = ParallelAccumulate<T, Iterator, BinaryOp>;
-		return Accumulator{}(first, last, nullValue, initialValue, op);
+		return Accumulator{}(first, last, nullValue, op);
 	}
 }
 

@@ -20,10 +20,19 @@ auto multiply = [](auto x, auto y) { return x * y; };
 int main()
 {
 	auto nums = numsFromTo(1u, 10u);
-	std::cout << "10! = " << mt::accumulate(std::cbegin(nums), std::cend(nums), 1u, 1u, multiply) << "\n";
+	std::cout << "10! = " << mt::accumulate(std::cbegin(nums), std::cend(nums), 1u, multiply) << "\n";
 
 	nums = numsFromTo(1u, 1000u);
-	std::cout << "1 + ... + 1000 = " << mt::accumulate(std::cbegin(nums), std::cend(nums)) << std::endl;
+	std::cout << "1 + ... + 1000 = " << mt::accumulate(std::cbegin(nums), std::cend(nums)) << '\n';
+
+	try
+	{
+		mt::accumulate(std::cbegin(nums), std::cend(nums), 0, [](auto x, auto y) { if (x < 3) return y; else throw 1; });
+	}
+	catch (int)
+	{
+		std::cout << "Exception propagated safely\n";
+	}
 
 	return 0;
 }
