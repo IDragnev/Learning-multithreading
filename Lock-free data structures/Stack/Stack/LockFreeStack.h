@@ -1,5 +1,5 @@
-#ifndef __LOCK_FREE_STACK
-#define __LOCK_FREE_STACK
+#ifndef __LOCK_FREE_STACK__
+#define __LOCK_FREE_STACK__
 
 #define _ENABLE_ATOMIC_ALIGNMENT_FIX
 
@@ -10,24 +10,11 @@
 namespace IDragnev::Multithreading
 {
 	template <typename T>
-	struct IsSafelyReturnable
-	{
-	private:
-		static constexpr bool isNoThrowMoveConstructible = std::is_nothrow_move_constructible_v<T>;
-		static constexpr bool isNothrowCopyConstructible = std::is_nothrow_copy_constructible_v<T>;
-
-	public:
-		static constexpr bool value = isNoThrowMoveConstructible || (!isNoThrowMoveConstructible && isNothrowCopyConstructible);
-	};
-
-	template <typename T>
-	static inline constexpr auto isSafelyReturnable = IsSafelyReturnable<T>::value;
-
-	template <typename T>
 	class LockFreeStack
 	{
 	private:
-		static_assert(isSafelyReturnable<T>, "LockFreeStack cannot guarantee exception safety for T");
+		static_assert(std::is_nothrow_move_constructible_v<T>, 
+			          "LockFreeStack cannot guarantee exception safety for T unles it is nothrow move-constructible");
 		
 		using CounterType = std::int32_t;
 
@@ -87,4 +74,4 @@ namespace IDragnev::Multithreading
 }
 
 #include "LockFreeStackImpl.hpp"
-#endif //__LOCK_FREE_STACK
+#endif //__LOCK_FREE_STACK__
