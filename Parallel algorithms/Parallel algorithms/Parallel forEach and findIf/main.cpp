@@ -30,7 +30,7 @@ int main()
 	auto duration = timeNow() - start;
 
 	std::cout << std::boolalpha;
-	std::cout << "Found? : " << (it != std::cend(nums));
+	std::cout << "Found 19 750? : " << (it != std::cend(nums));
 	std::cout << "\nSearch took " << duration.count() << " nsec.";
 }
 
