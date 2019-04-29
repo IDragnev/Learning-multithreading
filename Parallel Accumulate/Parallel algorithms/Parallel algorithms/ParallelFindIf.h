@@ -1,55 +1,41 @@
-#pragma once
+#ifndef __PARALLEL_FIND_IF_INCLUDED__
+#define __PARALLEL_FIND_IF_INCLUDED__
 
 #include <atomic>
 #include <future>
-#include "UtilityFunctions.h"
 
 namespace IDragnev::Multithreading
 {
-	namespace Detail
+	template <typename InputIt, typename Callable>
+	class ParallelFindIf
 	{
-		template <typename InputIt, typename Callable>
-		InputIt parallelFindIfImpl(InputIt first, InputIt last, Callable match, std::atomic<bool>& done)
-		{
-			using Utility::CallOnDestruction;
-			auto clear = CallOnDestruction{ [&done]() noexcept { done = true; } };
-			
-			static const auto subrangeLength = 25u;
+	public:
+		ParallelFindIf() = default;
+		ParallelFindIf(const ParallelFindIf& source) noexcept;
+		~ParallelFindIf() = default;
 
-			if (auto length = std::distance(first, last);
-				length < 2 * subrangeLength)
-			{
-				for (auto current = first;
-					current != last && !done.load();
-					++current;)
-				{
-					if (match(*current))
-					{
-						done = true;
-						return current;
-					}
-				}
+		ParallelFindIf& operator=(const ParallelFindIf& rhs) noexcept;
 
-				return last;
-			}
-			else
-			{
-				auto middle = first;
-				std::advance(middle, length / 2u);
-				auto secondHalfCall = [middle, last, match, &done] { parallelFindIfImpl(middle, last, match, done); };
+		InputIt operator()(InputIt first, InputIt end, Callable match);
 
-				auto seconHalfResult = std::async(secondHalfCall);
-				auto firstHalfResult = parallelFindIfImpl(first, middle, match, done);
+	private:
+		InputIt findIf(InputIt first, InputIt last, Callable match);
+		InputIt directSearch(InputIt first, InputIt last, Callable match);
+		InputIt divideAndSearch(InputIt first, InputIt last, std::size_t length, Callable match);
 
-				return (firstHalfResult != middle) ? firstHalfResult : seconHalfResult.get();
-			}
-		}
-	}
+		static bool isSmallEnough(std::size_t length);
+		static constexpr std::size_t MIN_SUBRANGE_LENGTH = 25;
+
+	private:
+		std::atomic<bool> done = false;
+	};
 
 	template <typename InputIt, typename Callable>
 	inline InputIt parallelFindIf(InputIt first, InputIt last, Callable match)
 	{
-		std::atomic<bool> done = false;
-		return Detail::parallelFindIfImpl(first, last, match, done);
+		return ParallelFindIf<InputIt, Callable>{}(first, last, match);
 	}
 }
+
+#include "ParallelFindIfImpl.hpp"
+#endif //__PARALLEL_FIND_IF_INCLUDED__
