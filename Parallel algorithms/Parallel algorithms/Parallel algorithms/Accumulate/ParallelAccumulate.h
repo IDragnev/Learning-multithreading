@@ -18,6 +18,12 @@ namespace IDragnev::Multithreading
 		using Task = std::packaged_task<T()>;
 
 	public:
+		ParallelAccumulate() = default;
+		ParallelAccumulate(const ParallelAccumulate& source) noexcept;
+		~ParallelAccumulate() = default;
+
+		ParallelAccumulate& operator=(const ParallelAccumulate& rhs) noexcept;
+
 		T operator()(Iterator first, Iterator last, T nullValue, BinaryOp op);
 
 	private:

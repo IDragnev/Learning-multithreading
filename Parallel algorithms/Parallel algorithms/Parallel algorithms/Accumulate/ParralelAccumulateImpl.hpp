@@ -4,6 +4,18 @@
 namespace IDragnev::Multithreading
 {
 	template <typename T, typename Iterator, typename BinaryOp>
+	ParallelAccumulate<T, Iterator, BinaryOp>::ParallelAccumulate(const ParallelAccumulate&) noexcept :
+		ParallelAccumulate{}
+	{
+	}
+
+	template <typename T, typename Iterator, typename BinaryOp>
+	inline auto ParallelAccumulate<T, Iterator, BinaryOp>::operator=(const ParallelAccumulate&) noexcept -> ParallelAccumulate&
+	{
+		return *this;
+	}
+
+	template <typename T, typename Iterator, typename BinaryOp>
 	T ParallelAccumulate<T, Iterator, BinaryOp>::operator()(Iterator first, Iterator last, T nullValue, BinaryOp op)
 	{
 		if (auto length = std::distance(first, last);
