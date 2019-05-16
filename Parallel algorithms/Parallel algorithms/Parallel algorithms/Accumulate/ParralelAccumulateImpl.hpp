@@ -80,7 +80,7 @@ namespace IDragnev::Multithreading
 		const auto numberOfSubthreads = numberOfThreads - 1;
 		auto blockStart = first;
 
-		for (decltype(numberOfSubthreads) i = 0;
+		for (decltype(numberOfThreads) i = 0;
 			i < numberOfSubthreads;
 			++i)
 		{

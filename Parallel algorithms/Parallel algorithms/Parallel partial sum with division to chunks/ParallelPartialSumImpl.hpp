@@ -70,13 +70,12 @@ namespace IDragnev::Multithreading
 	template <typename InputIt>
 	InputIt ParallelPartialSum<InputIt>::splitWorkToThreads(InputIt first, InputIt last)
 	{
+		const auto numberOfSubthreads = numberOfThreads - 1;
 		auto blockStart = first;
-		auto indexOflast = numberOfThreads - 1;
 
-		for (decltype(indexOflast) i = 0; i < indexOflast; ++i)
+		for (decltype(numberOfThreads) i = 0; i < numberOfSubthreads; ++i)
 		{
-			auto blockEnd = blockStart;
-			std::advance(blockEnd, blockSize - 1);
+			auto blockEnd = std::next(blockStart, blockSize - 1);
 			launchThread(blockStart, blockEnd, i);
 			blockStart = ++blockEnd;
 		}
@@ -87,21 +86,19 @@ namespace IDragnev::Multithreading
 	template <typename InputIt>
 	void ParallelPartialSum<InputIt>::launchThread(InputIt blockStart, InputIt blockEnd, std::size_t blockNumber)
 	{
-		auto previousBlockEndValue = (blockNumber > 0) ? &endValueFutures[blockNumber - 1u] : nullptr;
+		auto previousBlockEndValue = (blockNumber > 0u) ? &endValueFutures[blockNumber - 1u] : nullptr;
 		auto endValuePromise = &endValuePromises[blockNumber];
 		auto sumBlock = PartialSumBlock{ blockStart, blockEnd, previousBlockEndValue, endValuePromise };
 		
-		threads.emplace_back(std::thread{ std::move(sumBlock) });
 		endValueFutures.emplace_back(endValuePromises[blockNumber].get_future());
+		threads.emplace_back(std::thread{ std::move(sumBlock) });
 	}
 
 	template <typename InputIt>
 	void ParallelPartialSum<InputIt>::sumFinalBlock(InputIt blockStart, InputIt last)
 	{
-		auto blockEnd = blockStart;
-		std::advance(blockEnd, std::distance(blockStart, last) - 1);
-
-		auto previousBlockEndValue = (numberOfThreads > 1) ? &endValueFutures.back() : nullptr;
+		auto blockEnd = std::next(blockStart, std::distance(blockStart, last) - 1);
+		auto previousBlockEndValue = (numberOfThreads > 1u) ? &endValueFutures.back() : nullptr;
 		auto endValuePromise = nullptr;
 
 		PartialSumBlock{ blockStart, blockEnd, previousBlockEndValue, endValuePromise }();
