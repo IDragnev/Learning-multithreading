@@ -5,23 +5,21 @@ namespace IDragnev::Multithreading
 	T recursiveParallelAccumulate(Iterator first, Iterator last, T nullValue, BinaryOp op)
 	{
 		static const auto maxChunkSize = 25ul;
-
-		auto length = std::distance(first, last);
 		
-		if (length <= maxChunkSize)
+		if (auto length = std::distance(first, last); 
+			length <= maxChunkSize)
 		{
 			return std::accumulate(first, last, nullValue, op);
 		}
 		else
 		{
-			auto middle = first;
-			std::advance(middle, length / 2);
+			auto middle = std::next(first, length / 2);
 			auto self = [=] { return recursiveParallelAccumulate(first, middle, nullValue, op); };
 
 			auto firstHalf = std::async(self);
 			auto secondHalf = recursiveParallelAccumulate(middle, last, nullValue, op);
 
-			return op(firstHalf.get(), secondHalf);
+			return op(firstHalf.get(), std::move(secondHalf));
 		}
 	}
 }
