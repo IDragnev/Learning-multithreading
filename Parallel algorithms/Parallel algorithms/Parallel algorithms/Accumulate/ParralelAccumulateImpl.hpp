@@ -77,13 +77,14 @@ namespace IDragnev::Multithreading
 	template <typename T, typename Iterator, typename BinaryOp>
 	Iterator ParallelAccumulate<T, Iterator, BinaryOp>::splitWorkToThreads(Iterator first, Iterator last, T nullValue, BinaryOp op)
 	{
+		const auto numberOfSubthreads = numberOfThreads - 1;
 		auto blockStart = first;
-		auto indexOflast = numberOfThreads - 1;
 
-		for (decltype(indexOflast) i = 0; i < indexOflast; ++i)
+		for (decltype(numberOfSubthreads) i = 0;
+			i < numberOfSubthreads;
+			++i)
 		{
-			auto blockEnd = blockStart;
-			std::advance(blockEnd, blockSize);
+			auto blockEnd = std::next(blockStart, blockSize);
 			launchThread(blockStart, blockEnd, nullValue, op);
 			blockStart = blockEnd;
 		}
