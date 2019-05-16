@@ -17,14 +17,13 @@ namespace IDragnev::Multithreading
 		}
 		else
 		{
-			auto middle = first;
-			std::advance(middle, length / 2u);
+			auto middle = std::next(first, length / 2);
 			auto firstHalfCall = [first, middle, f] { parallelForEach(first, middle, f); };
 			
-			auto firstHalf = std::async(firstHalfCall);
+			auto firstHalfBarrier = std::async(firstHalfCall);
 			parallelForEach(middle, last, f);
 
-			firstHalf.get();
+			firstHalfBarrier.wait();
 		}
 	}
 }
