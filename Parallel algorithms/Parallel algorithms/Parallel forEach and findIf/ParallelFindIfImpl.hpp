@@ -35,7 +35,7 @@ namespace IDragnev::Multithreading
 	}
 
 	template <typename InputIt, typename Callable>
-	inline bool ParallelFindIf<InputIt, Callable>::isSmallEnough(std::size_t length)
+	inline bool ParallelFindIf<InputIt, Callable>::isSmallEnough(std::size_t length) noexcept
 	{
 		return length < 2 * MIN_SUBRANGE_LENGTH;
 	}
@@ -60,8 +60,7 @@ namespace IDragnev::Multithreading
 	template <typename InputIt, typename Callable>
 	InputIt ParallelFindIf<InputIt, Callable>::divideAndSearch(InputIt first, InputIt last, std::size_t length, Callable match)
 	{
-		auto middle = first;
-		std::advance(middle, length / 2u);
+		auto middle = std::next(first, length / 2);
 		auto secondHalfCall = [middle, last, match, this] { return findIf(middle, last, match); };
 
 		auto secondHalfResult = std::async(secondHalfCall);

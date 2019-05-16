@@ -23,7 +23,7 @@ namespace IDragnev::Multithreading
 		InputIt directSearch(InputIt first, InputIt last, Callable match);
 		InputIt divideAndSearch(InputIt first, InputIt last, std::size_t length, Callable match);
 
-		static bool isSmallEnough(std::size_t length);
+		static bool isSmallEnough(std::size_t length) noexcept;
 		static constexpr std::size_t MIN_SUBRANGE_LENGTH = 25;
 
 	private:
