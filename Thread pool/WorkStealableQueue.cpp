@@ -13,18 +13,18 @@ namespace IDragnev::Multithreading
 		return extract(&WorkStealableQueue::doExtractFront);
 	}
 
-	std::optional<Function> WorkStealableQueue::extract(ExtractorFunction f)
+	std::optional<Function> WorkStealableQueue::extract(ExtractorFunction extractor)
 	{
 		auto lock = LockGuard(mutex);
-		return !queue.empty() ? std::invoke(f, this) : std::nullopt;
+		return !queue.empty() ? std::invoke(extractor, this) : std::nullopt;
 	}
 
 	std::optional<Function> WorkStealableQueue::doExtractFront()
 	{
-		auto f = std::move(queue.front());
+		auto result = std::optional<Function>{ std::move(queue.front()) };
 		queue.pop_front();
 
-		return f;
+		return result;
 	}
 
 	std::optional<Function> WorkStealableQueue::extractBack()
@@ -34,10 +34,10 @@ namespace IDragnev::Multithreading
 
 	std::optional<Function> WorkStealableQueue::doExtractBack()
 	{
-		auto f = std::move(queue.back());
+		auto result = std::optional<Function>{ std::move(queue.back()) };
 		queue.pop_back();
 
-		return f;
+		return result;
 	}
 
 	bool WorkStealableQueue::isEmpty() const
