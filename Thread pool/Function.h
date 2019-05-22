@@ -2,6 +2,7 @@
 #define __FUNCTION_WRAPPER_H_INCLUDED__
 
 #include <memory>
+#include <assert.h>
 
 namespace IDragnev::Multithreading
 {
@@ -45,7 +46,11 @@ namespace IDragnev::Multithreading
 
 		Function& operator=(Function&& rhs) = default;
 
-		void operator()() { functor->invoke(); }
+		void operator()() 
+		{ 
+			assert(functor);	
+			functor->invoke();
+		}
 
 	private:
 		std::unique_ptr<Functor> functor;
