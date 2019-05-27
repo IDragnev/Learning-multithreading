@@ -35,10 +35,14 @@ namespace IDragnev::Multithreading
 			Callable function;
 		};
 
+		template <typename F>
+		using EnableIfNotSelf = std::enable_if_t<!std::is_same_v<std::decay_t<F>, Function>>;
+
 	public:
 		Function() = default;
 		Function(Function&& source) = default;
-		template <typename F>
+		template <typename F,
+			      typename = EnableIfNotSelf<F>>
 		Function(F&& f) :
 			functor(std::make_unique<SpecificFunctor<std::decay_t<F>>>(std::forward<F>(f)))
 		{
