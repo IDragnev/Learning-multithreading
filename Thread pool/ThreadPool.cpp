@@ -58,6 +58,64 @@ namespace IDragnev::Multithreading
 		localQueue = threadLocalQueues[localQueueIndex].get();
 	}
 
+	void ThreadPool::runPendingTask()
+	{
+		if (auto task = extractTask();
+			task)
+		{
+			std::invoke(*task);
+		}
+		else
+		{
+			std::this_thread::yield();
+		}
+	}
+
+	std::optional<Function> ThreadPool::extractTask()
+	{
+		if (auto task = extractTaskFromLocalQueue();
+			task)
+		{
+			return task;
+		}
+		else
+		{
+			task = extractTaskFromGlobalQueue();
+			return task ? std::move(task) : stealTaskFromOtherThread();
+		}
+	}
+
+	std::optional<Function> ThreadPool::extractTaskFromLocalQueue()
+	{
+		return localQueue ? localQueue->extractFront() : std::nullopt;
+	}
+
+	std::optional<Function> ThreadPool::extractTaskFromGlobalQueue()
+	{
+		auto result = mainQueue.extractFront();			
+		return result != nullptr ? std::move(*result) : std::nullopt; 
+	}
+
+	std::optional<Function> ThreadPool::stealTaskFromOtherThread()
+	{
+		auto queuesCount = threadLocalQueues.size();
+		auto nextQueueIndex = 
+			[queuesCount, this](auto i) { return localQueueIndex + i + 1 % queuesCount; };
+
+		for (decltype(queuesCount) i = 0; i < queuesCount; ++i)
+		{
+			auto index = nextQueueIndex(i);
+
+			if (auto result = threadLocalQueues[index]->extractBack();
+				result != std::nullopt)
+			{
+				return result;
+			}
+		}
+
+		return std::nullopt;
+	}
+
 	ThreadPool::~ThreadPool()
 	{
 		isDone = true;

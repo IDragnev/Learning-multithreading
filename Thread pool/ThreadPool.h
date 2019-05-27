@@ -16,6 +16,8 @@ namespace IDragnev::Multithreading
 		using Threads = std::vector<SmartThread>;
 		template <typename Callable>
 		using TaskHandle = std::future<std::invoke_result_t<Callable>>;
+		template <typename Callable>
+		using TaskType = std::packaged_task<std::invoke_result_t<Callable>()>;
 
 	public:
 		ThreadPool();
@@ -33,6 +35,14 @@ namespace IDragnev::Multithreading
 		void launchWorkerThreads();
 		void work(std::size_t queueIndex);
 
+		template <typename Callable>
+		void store(TaskType<Callable>&& task);
+
+		std::optional<Function> extractTask();
+		std::optional<Function> extractTaskFromLocalQueue();
+		std::optional<Function> extractTaskFromGlobalQueue();
+		std::optional<Function> stealTaskFromOtherThread();
+
 		static WorkStealableQueuePtrs makeLocalQueues(std::uint32_t count);
 
 	private:
@@ -48,5 +58,31 @@ namespace IDragnev::Multithreading
 		WorkStealableQueuePtrs threadLocalQueues;
 		Threads threads;
 	};
+
+	template <typename Callable>
+	auto ThreadPool::submit(Callable f) -> TaskHandle<Callable>
+	{
+		using Task = TaskType<Callable>;
+
+		auto task = Task(f);
+		auto handle = task.get_future();
+
+		store(std::move(task));
+
+		return handle;
+	}
+
+	template <typename Callable>
+	void ThreadPool::store(TaskType<Callable>&& task)
+	{
+		if (localQueue)
+		{
+			localQueue->insertFront(std::move(task));
+		}
+		else
+		{
+			mainQueue.enqueue(std::move(task));
+		}
+	}
 }
 #endif //__THREAD_POOL_H_INCLUDED__
