@@ -1,0 +1,9 @@
+*Debug*
+*.suo
+*.filters
+*.db
+*.ipch
+*.vcxproj
+*.sln
+*.user
+*.opendb
