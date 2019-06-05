@@ -1,21 +1,26 @@
 #include "InterruptibleThread.h"
+#include <assert.h>
+
+using IDragnev::Multithreading::Detail::myInterruptFlag;
 
 namespace IDragnev::Multithreading
 {
 	InterruptibleThread::InterruptibleThread(InterruptibleThread&& source) noexcept :
 		thread(std::move(source.thread)),
-		flag(source.flag)
+		interruptFlag(source.interruptFlag)
 	{
-		source.flag = nullptr;
+		source.interruptFlag = nullptr;
 	}
 
 	InterruptibleThread& InterruptibleThread::operator=(InterruptibleThread&& rhs) noexcept
 	{
 		if (this != &rhs)
 		{
+			assert(!thread.joinable());
+
 			auto temp = std::move(rhs);
 			std::swap(thread, temp.thread);
-			std::swap(flag, temp.flag);
+			std::swap(interruptFlag, temp.interruptFlag);
 		}
 
 		return *this;
@@ -24,13 +29,13 @@ namespace IDragnev::Multithreading
 	void InterruptibleThread::detach()
 	{
 		thread.detach();
-		flag = nullptr;
+		interruptFlag = nullptr;
 	}
 
 	void InterruptibleThread::join()
 	{
 		thread.join();
-		flag = nullptr;
+		interruptFlag = nullptr;
 	}
 
 	bool InterruptibleThread::joinable() const noexcept
@@ -40,15 +45,15 @@ namespace IDragnev::Multithreading
 
 	void InterruptibleThread::interrupt()
 	{
-		if (flag)
+		if (interruptFlag)
 		{
-			flag->set();
+			interruptFlag->set();
 		}
 	}
 
 	void checkForInterruption()
 	{
-		if (interruptFlag.isSet())
+		if (myInterruptFlag().isSet())
 		{
 			throw ThreadInterrupted{};
 		}
@@ -60,12 +65,13 @@ namespace IDragnev::Multithreading
 		using Utility::CallOnDestruction;
 		using namespace std::chrono_literals;
 
-		auto clearConditionVariable = [] { interruptFlag.clearConditionVariable(); };
+		auto clearConditionVariable = [] { myInterruptFlag().clearConditionVariable(); };
 
 		checkForInterruption();
-		interruptFlag.setConditionVariable(condition);
+		myInterruptFlag().setConditionVariable(condition);
 		auto x = CallOnDestruction{ clearConditionVariable };
 		checkForInterruption();
+		//any interrupts here will be lost if the wait is not bounded
 		condition.wait_for(lock, 1ms);
 		checkForInterruption();
 	}

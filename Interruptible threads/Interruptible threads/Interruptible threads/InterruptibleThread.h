@@ -7,11 +7,14 @@
 
 namespace IDragnev::Multithreading
 {
-	InterruptFlag& myInterruptFlag()
+	namespace Detail
 	{
-		static thread_local InterruptFlag interruptFlag;
+		InterruptFlag& myInterruptFlag()
+		{
+			static thread_local InterruptFlag interruptFlag;
 
-		return interruptFlag;
+			return interruptFlag;
+		}
 	}
 
 	class ThreadInterrupted : public std::exception { };
@@ -42,7 +45,7 @@ namespace IDragnev::Multithreading
 
 	private:
 		std::thread thread;
-		InterruptFlag* flag = nullptr;
+		InterruptFlag* interruptFlag = nullptr;
 	};
 
 	template<typename Function, typename... Args, typename>
@@ -51,7 +54,7 @@ namespace IDragnev::Multithreading
 		auto p = FlagPromise{};
 		auto g = [&p, f = std::forward<Function>(f)](auto&&... args)
 		{
-			p.set_value(&myInterruptFlag());
+			p.set_value(&Detail::myInterruptFlag());
 			try
 			{
 				f(std::forward<decltype(args)>(args)...);
@@ -60,10 +63,16 @@ namespace IDragnev::Multithreading
 		};
 
 		thread = { g, std::forward<Args>(args)... };
-		flag = p.get_future().get();
+		interruptFlag = p.get_future().get();
 	}
 
 	void checkForInterruption();
 	void interruptibleWait(std::condition_variable& condition,
 		                   std::unique_lock<std::mutex> lock);
+	template <typename Lockable>
+	void interruptibleWait(std::condition_variable_any& condition,
+		                   Lockable& lock)
+	{
+		Detail::myInterruptFlag().wait(condition, lock);
+	}
 }
