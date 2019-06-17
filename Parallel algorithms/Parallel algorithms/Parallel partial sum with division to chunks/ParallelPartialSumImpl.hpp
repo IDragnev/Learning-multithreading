@@ -31,9 +31,9 @@ namespace IDragnev::Multithreading
 	{
 		auto deleter = [](auto ptr)
 		{
+			ptr->threads.clear();
 			ptr->endValuePromises.clear();
 			ptr->endValueFutures.clear();
-			ptr->threads.clear();
 			ptr->numberOfThreads = ptr->blockSize = 0;
 		};
 
