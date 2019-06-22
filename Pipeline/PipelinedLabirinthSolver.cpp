@@ -141,11 +141,7 @@ namespace IDragnev::Multithreading
 		const auto& filename = file->value();
 		try
 		{
-			auto lab = FileLoader{}(filename);
-			if (!lab.empty())
-			{
-				labirinths.insertBack(std::move(lab));
-			}
+			labirinths.insertBack(FileLoader{}(filename));
 		}
 		catch (...)
 		{
