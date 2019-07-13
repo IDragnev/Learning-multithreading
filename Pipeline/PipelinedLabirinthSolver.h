@@ -14,34 +14,6 @@ namespace IDragnev::Multithreading
 	private:
 		using Self = PipelinedLabirinthSolver;
 		using Labirinth = std::vector<std::string>;
-	
-		class FileLoader
-		{
-		public:
-			class FailedToOpen : public std::runtime_error
-			{
-			public:
-				FailedToOpen(const std::string& filename);
-			};
-
-			FileLoader() = default;
-			FileLoader(const FileLoader& source);
-			~FileLoader() = default;
-
-			FileLoader& operator=(const FileLoader& rhs);
-
-			Labirinth operator()(const std::string& file);
-
-		private:
-			void init(const std::string& file);	
-			void openFile(const std::string& file);
-			void parseFile();
-			void clear() noexcept;
-
-		private:
-			std::ifstream file;
-			Labirinth result;
-		};
 
 	public:
 		using Result = std::vector<LabirinthSolver::Result>;

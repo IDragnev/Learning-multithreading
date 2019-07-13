@@ -2,72 +2,42 @@
 #include "DirectoryTextFilesFlatIterator.h"
 #include "UtilityFunctions.h"
 #include "Ranges\Ranges.h"
+#include "Functional\Functional.h"
 #include <future>
+#include "range/v3/all.hpp" 
 
 using IDragnev::Utility::CallOnDestruction;
 
 namespace IDragnev::Multithreading
 {
-	PipelinedLabirinthSolver::FileLoader::FailedToOpen::FailedToOpen(const std::string& filename) :
-		std::runtime_error{ "Failed to open " + filename }
+	class FailedToOpen : public std::runtime_error
 	{
-	}
+	public:
+		FailedToOpen(const std::string& filename) :
+			std::runtime_error{ "Failed to open " + filename }
+		{
+		}
+	};
 
-	//all members act like local variables and need not be copied
-	PipelinedLabirinthSolver::FileLoader::FileLoader(const FileLoader&)
+	const auto openFile = [](const auto& filename) -> std::ifstream
 	{
-	}
-
-	auto PipelinedLabirinthSolver::FileLoader::operator=(const FileLoader&) -> FileLoader&
-	{
-		return *this;
-	}
-
-	auto PipelinedLabirinthSolver::FileLoader::operator()(const std::string& file) -> Labirinth
-	{
-		auto x = CallOnDestruction{ [this]() noexcept { clear(); } };
-		init(file);
-		parseFile();
-
-		return std::move(result);
-	}
-
-	void PipelinedLabirinthSolver::FileLoader::init(const std::string& filename)
-	{
-		openFile(filename);
-		result.reserve(25);
-	}
-
-	void PipelinedLabirinthSolver::FileLoader::openFile(const std::string& filename)
-	{
-		file.open(filename);
+		auto file = std::ifstream{ filename };
 
 		if (!file.is_open())
 		{
 			throw FailedToOpen{ filename };
 		}
-	}
 
-	void PipelinedLabirinthSolver::FileLoader::parseFile()
+		return file;
+	};
+
+	const auto parseFile = [](std::ifstream file) -> std::vector<std::string>
 	{
-		char buffer[255];
-		
-		file.clear();
+		return ranges::istream_range<std::string>{ file };
+	};
 
-		while (!file.eof() && file.good())
-		{
-			file.getline(buffer, 255, '\n');
-			result.emplace_back(buffer);
-		}
-	}
+	auto loadFile = Functional::compose(parseFile, openFile);
 
-	void PipelinedLabirinthSolver::FileLoader::clear() noexcept
-	{
-		result.clear();
-		file.close();
-	}
-
-	//all members act like local variables and need not be copied
 	PipelinedLabirinthSolver::PipelinedLabirinthSolver(const Self&)
 	{
 	}
@@ -141,7 +111,7 @@ namespace IDragnev::Multithreading
 		const auto& filename = file->value();
 		try
 		{
-			labirinths.insertBack(FileLoader{}(filename));
+			labirinths.insertBack(loadFile(filename));
 		}
 		catch (...)
 		{
